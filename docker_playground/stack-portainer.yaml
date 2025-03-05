@@ -1,0 +1,60 @@
+version: "3.7"
+services:
+
+## --------------------------- ORION --------------------------- ##
+
+  agent:
+    image: portainer/agent:latest ## Versão do portainer
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+
+    networks:
+      - TheraNet ## Nome da rede interna
+
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.platform.os == linux]
+
+## --------------------------- ORION --------------------------- ##
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    command: -H tcp://tasks.agent:9001 --tlsskipverify
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+    networks:
+      - TheraNet ## Nome da rede interna
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.portainer.rule=Host(`docker-labs-painel.theracompany.top`)" ## Dominio da aplicação
+        - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+        - "traefik.http.routers.portainer.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.portainer.service=portainer"
+        - "traefik.docker.network=TheraNet" ## Nome da rede interna
+        - "traefik.http.routers.portainer.entrypoints=websecure"
+        - "traefik.http.routers.portainer.priority=1"
+
+## --------------------------- ORION --------------------------- ##
+
+networks:
+  TheraNet: ## Nome da rede interna
+    external: true
+    attachable: true
+    name: TheraNet ## Nome da rede interna
+
+volumes:
+  portainer_data:
+    external: true
+    name: portainer_data
